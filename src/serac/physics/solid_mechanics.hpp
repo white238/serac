@@ -185,6 +185,17 @@ public:
       });
     }
 
+    auto [stress_fes, stress_fec] = generateParFiniteElementSpace<L2<0, 9>>(&mesh_);
+    stress_fes_ = std::move(stress_fes);
+    stress_fec_ = std::move(stress_fec);
+
+    auto [volume_fes, volume_fec] = generateParFiniteElementSpace<L2<0>>(&mesh_);
+    volume_fes_ = std::move(volume_fes);
+    volume_fec_ = std::move(volume_fec);
+
+    element_integrated_stress_ =
+        std::make_unique<Functional<L2<0, 9>(trial, trial, shape_trial, parameter_space...)>>(test_space, trial_spaces);
+
     residual_ =
         std::make_unique<Functional<test(trial, trial, shape_trial, parameter_space...)>>(test_space, trial_spaces);
 
@@ -658,8 +669,8 @@ public:
     // average stress for output
     element_integrated_stress_->AddDomainIntegral(
         Dimension<dim>{},
-        DependsOn<0, 1, active_parameters + NUM_STATE_VARS - 1 ...>{},
-        [material](auto /*x*/, auto& state, auto displacement, auto shape, auto... params) {
+        DependsOn<0, 1, 2, active_parameters + NUM_STATE_VARS ...>{},
+        [material](auto /*x*/, auto& state, auto displacement, auto /* acceleration */, auto shape, auto... params) {
           auto du_dX   = get<DERIVATIVE>(displacement);
           auto dp_dX   = get<DERIVATIVE>(shape);
 
@@ -984,8 +995,14 @@ public:
 
     nonlin_solver_->setOperator(*residual_with_bcs_);
 
+    // element_integrated_stress_ =
+    //     std::make_unique<Functional<L2<0, 9>(trial, trial, shape_trial, parameter_space...)>>(test_space, trial_spaces);
+
     // volume for volume averaging of stress output
-    element_volume_->AddDomainIntegral(
+    std::array<const mfem::ParFiniteElementSpace*, 1> volume_trial_spaces;
+    volume_trial_spaces[0] = &shape_displacement_.space();
+    Functional<L2<0>(shape_trial)> evaluate_element_volumes(volume_fes_.get(), volume_trial_spaces);
+    evaluate_element_volumes.AddDomainIntegral(
         Dimension<dim>{},
         DependsOn<0>{},
         [](auto /*x*/, auto shape) {
@@ -993,6 +1010,7 @@ public:
           return serac::tuple{1.0*det(I + dp_dX), serac::zero{}};
         },
         mesh_);
+    element_volumes_.Vector::operator=(evaluate_element_volumes(shape_displacement_));
   }
 
   /// @brief Solve the Quasi-static Newton system
@@ -1097,6 +1115,11 @@ public:
       // works for quasi-statics, but we need to account for the accelerations in
       // dynamics. We need to figure out how to get the updated accelerations out of the
       // ODE solver.
+
+      // stress volume average
+      // don't need acceleration, pass in zero
+      stresses_.Vector::operator=((*element_integrated_stress_)(displacement_, zero_, shape_displacement_, *parameters_[parameter_indices].state...));
+      stresses_.Vector::operator/=(element_volumes_);
 
       residual_->update_qdata = false;
     }
@@ -1269,6 +1292,11 @@ protected:
   /// @brief Stress field for output
   FiniteElementDual stresses_;
 
+  std::unique_ptr<mfem::ParFiniteElementSpace> stress_fes_;
+  std::unique_ptr<mfem::FiniteElementCollection> stress_fec_;
+  std::unique_ptr<mfem::ParFiniteElementSpace> volume_fes_;
+  std::unique_ptr<mfem::FiniteElementCollection> volume_fec_;
+
   /// serac::Functional that is used to calculate the residual and its derivatives
   std::unique_ptr<Functional<test(trial, trial, shape_trial, parameter_space...)>> residual_;
 
@@ -1278,8 +1306,9 @@ protected:
   /// the specific methods and tolerances specified to solve the nonlinear residual equations
   std::unique_ptr<EquationSolver> nonlin_solver_;
 
-  std::unique_ptr<Functional<L2<0,9>(trial, shape_trial, parameter_space...)>> element_integrated_stress_;
-  std::unique_ptr<Functional<L2<0>(shape_trial)>> element_volume_;
+  std::unique_ptr<Functional<L2<0,9>(trial, trial, shape_trial, parameter_space...)>> element_integrated_stress_;
+  
+  mfem::Vector element_volumes_;
 
   /**
    * @brief the ordinary differential equation that describes
