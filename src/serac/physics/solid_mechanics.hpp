@@ -193,6 +193,9 @@ public:
     shape_displacement_   = 0.0;
     adjoint_displacement_ = 0.0;
 
+    // TEMPORARY, just forcing an initialization so that there should be some output
+    stresses_ = 0.0;
+
     // If the user wants the AMG preconditioner with a linear solver, set the pfes
     // to be the displacement
     auto* amg_prec = dynamic_cast<mfem::HypreBoomerAMG*>(nonlin_solver_->preconditioner());
@@ -649,6 +652,37 @@ public:
           // Note that the mass part of the return is integrated in the perturbed reference
           // configuration, hence the det(I + dp_dx) = det(dX'/dX)
           return serac::tuple{material.density * d2u_dt2 * det(I + dp_dX), flux};
+        },
+        mesh_, qdata);
+
+        // average stress for output
+    element_integrated_stress_->AddDomainIntegral(
+        Dimension<dim>{},
+        DependsOn<0, 1, active_parameters + NUM_STATE_VARS - 1 ...>{},
+        [material](auto /*x*/, auto& state, auto displacement, auto shape, auto... params) {
+          auto du_dX   = get<DERIVATIVE>(displacement);
+          auto dp_dX   = get<DERIVATIVE>(shape);
+
+          // Compute the displacement gradient with respect to the shape-adjusted coordinate.
+
+          // Note that the current configuration x = X + u + p, where X is the original reference
+          // configuration, u is the displacement, and p is the shape displacement. We need the gradient with
+          // respect to the perturbed reference configuration X' = X + p for the material model. Therefore, we calculate
+          // du/dX' = du/dX * dX/dX' = du/dX * (dX'/dX)^-1 = du/dX * (I + dp/dX)^-1
+
+          auto du_dX_prime = dot(du_dX, inv(I + dp_dX));
+
+          auto stress = material(state, du_dX_prime, params...);
+
+          tensor<double, 9> stress_vector;
+          for (int i = 0, k = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++, k++) {
+              stress_vector[k] = get_value(stress[i][j]);
+            }
+          }
+
+          // BT: Do I need to account for the shape displacement change of dV?
+          return serac::tuple{stress_vector*det(I + dp_dX), serac::zero{}};
         },
         mesh_, qdata);
   }
@@ -1233,6 +1267,9 @@ protected:
 
   /// the specific methods and tolerances specified to solve the nonlinear residual equations
   std::unique_ptr<EquationSolver> nonlin_solver_;
+
+  std::unique_ptr<Functional<L2<0,9>(trial, shape_trial, parameter_space...)>> element_integrated_stress_;
+  std::unique_ptr<Functional<L2<0,9>(trial, shape_trial, parameter_space...)>> element_volume_;
 
   /**
    * @brief the ordinary differential equation that describes
