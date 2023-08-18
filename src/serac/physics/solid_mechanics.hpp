@@ -140,6 +140,7 @@ public:
                 .order = order, .vector_dim = dim, .name = detail::addPrefix(name, "adjoint_displacement")},
             sidre_datacoll_id_)),
         reactions_(StateManager::newDual(displacement_.space(), detail::addPrefix(name, "reactions"))),
+        stresses_(StateManager::newDual(FiniteElementState::Options{.order = 0, .vector_dim = 9, .element_type = ElementType::L2, .name = detail::addPrefix(name, "stress")})),
         nonlin_solver_(std::move(solver)),
         ode2_(displacement_.space().TrueVSize(),
               {.time = ode_time_point_, .c0 = c0_, .c1 = c1_, .u = u_, .du_dt = du_dt_, .d2u_dt2 = previous_},
@@ -161,6 +162,7 @@ public:
     states_.push_back(&adjoint_displacement_);
 
     duals_.push_back(&reactions_);
+    duals_.push_back(&stresses_);
 
     parameters_.resize(sizeof...(parameter_space));
 
@@ -1219,6 +1221,9 @@ protected:
 
   /// nodal forces
   FiniteElementDual reactions_;
+
+  /// @brief Stress field for output
+  FiniteElementDual stresses_;
 
   /// serac::Functional that is used to calculate the residual and its derivatives
   std::unique_ptr<Functional<test(trial, trial, shape_trial, parameter_space...)>> residual_;
