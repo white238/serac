@@ -655,7 +655,7 @@ public:
         },
         mesh_, qdata);
 
-        // average stress for output
+    // average stress for output
     element_integrated_stress_->AddDomainIntegral(
         Dimension<dim>{},
         DependsOn<0, 1, active_parameters + NUM_STATE_VARS - 1 ...>{},
@@ -983,6 +983,16 @@ public:
     }
 
     nonlin_solver_->setOperator(*residual_with_bcs_);
+
+    // volume for volume averaging of stress output
+    element_volume_->AddDomainIntegral(
+        Dimension<dim>{},
+        DependsOn<0>{},
+        [](auto /*x*/, auto shape) {
+          auto dp_dX = get<DERIVATIVE>(shape);
+          return serac::tuple{1.0*det(I + dp_dX), serac::zero{}};
+        },
+        mesh_);
   }
 
   /// @brief Solve the Quasi-static Newton system
@@ -1269,7 +1279,7 @@ protected:
   std::unique_ptr<EquationSolver> nonlin_solver_;
 
   std::unique_ptr<Functional<L2<0,9>(trial, shape_trial, parameter_space...)>> element_integrated_stress_;
-  std::unique_ptr<Functional<L2<0,9>(trial, shape_trial, parameter_space...)>> element_volume_;
+  std::unique_ptr<Functional<L2<0>(shape_trial)>> element_volume_;
 
   /**
    * @brief the ordinary differential equation that describes
