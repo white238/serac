@@ -1645,6 +1645,14 @@ SERAC_HOST_DEVICE constexpr auto chop(const tensor<double, m, n>& A)
   return copy;
 }
 
+template <typename T, int ... n>
+SERAC_HOST_DEVICE constexpr auto flatten(const tensor<T, n...>& A)
+{
+  tensor<T, (n * ...) > A_flat{};
+  std::memcpy(&A_flat, &A, sizeof(T) * (n * ...));
+  return A_flat;
+}
+
 /// @cond
 namespace detail {
 

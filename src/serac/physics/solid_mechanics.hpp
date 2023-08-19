@@ -683,17 +683,10 @@ public:
 
           auto du_dX_prime = dot(du_dX, inv(I + dp_dX));
 
-          auto stress = material(state, du_dX_prime, params...);
-
-          tensor<double, 9> stress_vector;
-          for (int i = 0, k = 0; i < 3; i++) {
-            for (int j = 0; j < 3; j++, k++) {
-              stress_vector[k] = get_value(stress[i][j]);
-            }
-          }
+          auto stress = get_value(material(state, du_dX_prime, params...));
 
           // BT: Do I need to account for the shape displacement change of dV?
-          return serac::tuple{stress_vector*det(I + dp_dX), serac::zero{}};
+          return serac::tuple{flatten(stress) * det(I + dp_dX), serac::zero{}};
         },
         mesh_, qdata);
   }
