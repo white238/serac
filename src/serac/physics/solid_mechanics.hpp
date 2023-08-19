@@ -140,7 +140,7 @@ public:
                 .order = order, .vector_dim = dim, .name = detail::addPrefix(name, "adjoint_displacement")},
             sidre_datacoll_id_)),
         reactions_(StateManager::newDual(displacement_.space(), detail::addPrefix(name, "reactions"))),
-        stresses_(StateManager::newDual(FiniteElementState::Options{.order = 0, .vector_dim = 9, .element_type = ElementType::L2, .name = detail::addPrefix(name, "stress")})),
+        stresses_(StateManager::newDual(FiniteElementState::Options{.order = 0, .vector_dim = dim*dim, .element_type = ElementType::L2, .name = detail::addPrefix(name, "stress")}, sidre_datacoll_id_)),
         nonlin_solver_(std::move(solver)),
         ode2_(displacement_.space().TrueVSize(),
               {.time = ode_time_point_, .c0 = c0_, .c1 = c1_, .u = u_, .du_dt = du_dt_, .d2u_dt2 = previous_},
@@ -185,7 +185,7 @@ public:
       });
     }
 
-    auto [stress_fes, stress_fec] = generateParFiniteElementSpace<L2<0, 9>>(&mesh_);
+    auto [stress_fes, stress_fec] = generateParFiniteElementSpace<L2<0, dim*dim>>(&mesh_);
     stress_fes_ = std::move(stress_fes);
     stress_fec_ = std::move(stress_fec);
 
@@ -194,7 +194,7 @@ public:
     volume_fec_ = std::move(volume_fec);
 
     element_integrated_stress_ =
-        std::make_unique<Functional<L2<0, 9>(trial, trial, shape_trial, parameter_space...)>>(test_space, trial_spaces);
+        std::make_unique<Functional<L2<0, dim*dim>(trial, trial, shape_trial, parameter_space...)>>(test_space, trial_spaces);
 
     residual_ =
         std::make_unique<Functional<test(trial, trial, shape_trial, parameter_space...)>>(test_space, trial_spaces);
@@ -988,9 +988,6 @@ public:
 
     nonlin_solver_->setOperator(*residual_with_bcs_);
 
-    // element_integrated_stress_ =
-    //     std::make_unique<Functional<L2<0, 9>(trial, trial, shape_trial, parameter_space...)>>(test_space, trial_spaces);
-
     // volume for volume averaging of stress output
     std::array<const mfem::ParFiniteElementSpace*, 1> volume_trial_spaces;
     volume_trial_spaces[0] = &shape_displacement_.space();
@@ -1299,7 +1296,7 @@ protected:
   /// the specific methods and tolerances specified to solve the nonlinear residual equations
   std::unique_ptr<EquationSolver> nonlin_solver_;
 
-  std::unique_ptr<Functional<L2<0,9>(trial, trial, shape_trial, parameter_space...)>> element_integrated_stress_;
+  std::unique_ptr<Functional<L2<0,dim*dim>(trial, trial, shape_trial, parameter_space...)>> element_integrated_stress_;
   
   mfem::Vector element_volumes_;
 
