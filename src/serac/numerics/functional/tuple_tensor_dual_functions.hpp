@@ -150,6 +150,7 @@ SERAC_HOST_DEVICE constexpr auto make_dual_helper(double arg)
  * @brief promote a tensor value to dual number with a one_hot_t< i, N, tensor > gradient type
  * @param arg the value to be promoted
  */
+#if 0
 template <int i, int N, typename T, int... n>
 SERAC_HOST_DEVICE constexpr auto make_dual_helper(const tensor<T, n...>& arg)
 {
@@ -159,6 +160,33 @@ SERAC_HOST_DEVICE constexpr auto make_dual_helper(const tensor<T, n...>& arg)
     arg_dual(j...).value                         = arg(j...);
     serac::get<i>(arg_dual(j...).gradient)(j...) = 1.0;
   });
+  return arg_dual;
+}
+#endif
+ 
+template <int i, int N, typename T, int m>
+SERAC_HOST_DEVICE constexpr auto make_dual_helper(const tensor<T, m>& arg)
+{
+  using gradient_t = one_hot_t<i, N, tensor<T, m> >;
+  tensor<dual<gradient_t>, m> arg_dual{};
+  for (int j = 0; j < m; j++) {
+    arg_dual(j).value                      = arg(j);
+    serac::get<i>(arg_dual(j).gradient)(j) = 1.0;
+  }
+  return arg_dual;
+}
+
+template <int i, int N, typename T, int m, int n>
+SERAC_HOST_DEVICE constexpr auto make_dual_helper(const tensor<T, m, n>& arg)
+{
+  using gradient_t = one_hot_t<i, N, tensor<T, m, n> >;
+  tensor<dual<gradient_t>, m,n> arg_dual{};
+  for (int j = 0; j < m; j++) {
+    for (int k = 0; k < n; k++) {
+      arg_dual(j,k).value                        = arg(j,k);
+      serac::get<i>(arg_dual(j,k).gradient)(j,k) = 1.0;
+    }
+  }
   return arg_dual;
 }
 
@@ -312,6 +340,7 @@ SERAC_HOST_DEVICE auto get_gradient(dual<serac::tuple<T...>> arg)
   return serac::apply([](auto... each_value) { return serac::tuple{each_value...}; }, arg.gradient);
 }
 
+#if 0
 /// @overload
 template <typename... T, int... n>
 SERAC_HOST_DEVICE auto get_gradient(const tensor<dual<serac::tuple<T...>>, n...>& arg)
@@ -322,6 +351,30 @@ SERAC_HOST_DEVICE auto get_gradient(const tensor<dual<serac::tuple<T...>>, n...>
   });
   return g;
 }
+#else
+template <typename... T, int m>
+SERAC_HOST_DEVICE auto get_gradient(const tensor<dual<serac::tuple<T...> >, m>& arg)
+{
+  serac::tuple<outer_product_t<tensor<double, m>, T> ...> g{};
+  for (int i = 0; i < m; i++) {
+    for_constexpr<sizeof...(T)>([&](auto j) { serac::get<j>(g)(i) = serac::get<j>(arg(i).gradient); });
+  }
+  return g;
+}
+
+template <typename... T, int m, int n>
+SERAC_HOST_DEVICE auto get_gradient(const tensor<dual<serac::tuple<T...>>, m, n>& arg)
+{
+  serac::tuple<outer_product_t<tensor<double, m, n>, T> ...> g{};
+  for (int i = 0; i < m; i++) {
+    for (int j = 0; j < n; j++) {
+      for_constexpr<sizeof...(T)>([&](auto k) { serac::get<k>(g)(i,j) = serac::get<k>(arg(i,j).gradient); });
+    }
+  }
+  return g;
+}
+
+#endif
 
 /// @overload
 template <typename... T>
@@ -335,6 +388,7 @@ SERAC_HOST_DEVICE auto get_gradient(serac::tuple<T...> tuple_of_values)
  * @param[in] A The tensor of values
  * @note a d-order tensor's gradient will be initialized to the (2*d)-order identity tensor
  */
+#if 0
 template <int... n>
 SERAC_HOST_DEVICE constexpr auto make_dual(const tensor<double, n...>& A)
 {
@@ -345,6 +399,31 @@ SERAC_HOST_DEVICE constexpr auto make_dual(const tensor<double, n...>& A)
   });
   return A_dual;
 }
+#else
+template <int m>
+SERAC_HOST_DEVICE constexpr auto make_dual(const tensor<double, m>& A)
+{
+  tensor<dual<tensor<double, m>>, m> A_dual{};
+  for (int i = 0; i < m; i++) {
+    A_dual(i).value       = A(i);
+    A_dual(i).gradient(i) = 1.0;
+  }
+  return A_dual;
+}
+
+template <int m, int n>
+SERAC_HOST_DEVICE constexpr auto make_dual(const tensor<double, m, n>& A)
+{
+  tensor<dual<tensor<double, m, n>>, m, n> A_dual{};
+  for (int i = 0; i < m; i++) {
+    for (int j = 0; j < n; j++) {
+      A_dual(i,j).value         = A(i,j);
+      A_dual(i,j).gradient(i,j) = 1.0;
+    }
+  }
+  return A_dual;
+}
+#endif
 
 /**
  * @brief Compute LU factorization of a matrix with partial pivoting
@@ -490,6 +569,7 @@ SERAC_HOST_DEVICE constexpr auto inv(tensor<dual<gradient_type>, n, n> A)
  * @brief Retrieves a value tensor from a tensor of dual numbers
  * @param[in] arg The tensor of dual numbers
  */
+#if 0
 template <typename T, int... n>
 SERAC_HOST_DEVICE auto get_value(const tensor<dual<T>, n...>& arg)
 {
@@ -497,11 +577,35 @@ SERAC_HOST_DEVICE auto get_value(const tensor<dual<T>, n...>& arg)
   for_constexpr<n...>([&](auto... i) { value(i...) = arg(i...).value; });
   return value;
 }
+#else
+template <typename T, int m>
+SERAC_HOST_DEVICE auto get_value(const tensor<dual<T>, m>& arg)
+{
+  tensor<double, m> value{};
+  for (int i = 0; i < m; i++) {
+    value(i) = arg(i).value;
+  }
+  return value;
+}
+
+template <typename T, int m, int n>
+SERAC_HOST_DEVICE auto get_value(const tensor<dual<T>, m, n>& arg)
+{
+  tensor<double, m, n> value{};
+  for (int i = 0; i < m; i++) {
+    for (int j = 0; j < n; j++) {
+      value(i,j) = arg(i,j).value;
+    }
+  }
+  return value;
+}
+#endif
 
 /**
  * @brief Retrieves a gradient tensor from a tensor of dual numbers
  * @param[in] arg The tensor of dual numbers
  */
+#if 0
 template <int... n>
 SERAC_HOST_DEVICE constexpr auto get_gradient(const tensor<dual<double>, n...>& arg)
 {
@@ -510,7 +614,32 @@ SERAC_HOST_DEVICE constexpr auto get_gradient(const tensor<dual<double>, n...>& 
   return g;
 }
 
+#else
+template <int m>
+SERAC_HOST_DEVICE constexpr auto get_gradient(const tensor<dual<double>, m>& arg)
+{
+  tensor<double, m> g{};
+  for (int i = 0; i < m; i++) {
+    g(i) = arg(i).gradient;
+  }
+  return g;
+}
+
+template <int m, int n>
+SERAC_HOST_DEVICE constexpr auto get_gradient(const tensor<dual<double>, m, n>& arg)
+{
+  tensor<double, m, n> g{};
+  for (int i = 0; i < m; i++) {
+    for (int j = 0; j < n; j++) {
+      g(i,j) = arg(i,j).gradient;
+    }
+  }
+  return g;
+}
+#endif
+
 /// @overload
+#if 0
 template <int... n, int... m>
 SERAC_HOST_DEVICE constexpr auto get_gradient(const tensor<dual<tensor<double, m...>>, n...>& arg)
 {
@@ -518,6 +647,31 @@ SERAC_HOST_DEVICE constexpr auto get_gradient(const tensor<dual<tensor<double, m
   for_constexpr<n...>([&](auto... i) { g(i...) = arg(i...).gradient; });
   return g;
 }
+#else
+template <int m, int... p>
+SERAC_HOST_DEVICE constexpr auto get_gradient(const tensor<dual<tensor<double, p...>>, m>& arg)
+{
+  tensor<double, m, p...> g{};
+  for (int i = 0; i < m; i++) {
+    g(i) = arg(i).gradient;
+  }
+  return g;
+}
+
+template <int m, int n, int... p>
+SERAC_HOST_DEVICE constexpr auto get_gradient(const tensor<dual<tensor<double, p...>>, m, n>& arg)
+{
+  tensor<double, m, n, p...> g{};
+  for (int i = 0; i < m; i++) {
+    for (int j = 0; j < n; j++) {
+      g(i,j) = arg(i,j).gradient;
+    }
+  }
+  return g;
+}
+#endif
+
+
 
 /**
  * @brief Status and diagnostics of nonlinear equation solvers

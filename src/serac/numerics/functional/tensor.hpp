@@ -1033,7 +1033,10 @@ template <typename T, int... n>
 SERAC_HOST_DEVICE constexpr auto squared_norm(const tensor<T, n...>& A)
 {
   T total{};
-  for_constexpr<n...>([&](auto... i) { total += A(i...) * A(i...); });
+  const T* A_ptr = reinterpret_cast<const T*>(&A);
+  for (int i = 0; i < (n * ...); i++) {
+    total += A_ptr[i] * A_ptr[i];
+  }
   return total;
 }
 
@@ -1805,9 +1808,13 @@ SERAC_HOST_DEVICE constexpr auto chain_rule(const tensor<double, n...>& df_dx, c
 template <int... n>
 SERAC_HOST_DEVICE constexpr auto chain_rule(const tensor<double, n...>& df_dx, const tensor<double, n...>& dx)
 {
-  double total{};
-  for_constexpr<n...>([&](auto... i) { total += df_dx(i...) * dx(i...); });
-  return total;
+  double df{};
+  const double * df_dx_ptr = reinterpret_cast<const double*>(&df_dx);
+  const double * dx_ptr = reinterpret_cast<const double*>(&dx);
+  for (int i = 0; i < (n * ...); i++) {
+    df += df_dx_ptr[i] * dx_ptr[i];
+  }
+  return df;
 }
 
 /**
@@ -1896,7 +1903,10 @@ template <typename T, int... n>
 bool isnan(const tensor<T, n...>& A)
 {
   bool found_nan = false;
-  for_constexpr<n...>([&](auto... i) { found_nan |= std::isnan(A(i...)); });
+  const T* A_ptr = reinterpret_cast<const T*>(&A);
+  for (int i = 0; i < (n * ...); i++) {
+    found_nan |= std::isnan(A_ptr[i]);
+  }
   return found_nan;
 }
 
