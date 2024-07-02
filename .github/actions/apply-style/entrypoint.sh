@@ -5,7 +5,7 @@ CMAKE_ARGS="$CMAKE_ARGS -DENABLE_CLANGFORMAT=ON"
 CMAKE_ARGS="$CMAKE_ARGS -DCLANGFORMAT_EXECUTABLE=/usr/bin/clang-format"
 CMAKE_ARGS="$CMAKE_ARGS -DENABLE_MPI=ON"
 CMAKE_ARGS="$CMAKE_ARGS -DMPI_C_COMPILER=/usr/bin/mpicc"
-CMAKE_ARGS="$CMAKE_ARGS -DMPI_CXX_COMPILER=/usr/bin/mpic"
+CMAKE_ARGS="$CMAKE_ARGS -DMPI_CXX_COMPILER=/usr/bin/mpic++"
 CMAKE_ARGS="$CMAKE_ARGS -DMPI_Fortran_COMPILER=/usr/bin/mpif90"
 
 # Avoid error "fatal: detected dubious ownership in repository at '/github/workspace'"
