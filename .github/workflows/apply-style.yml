@@ -20,6 +20,13 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.ref }}
 
+      - name: Checkout Pull Request
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Checking out from PR #${{ github.event.issue.number }}"
+          hub pr checkout ${{ github.event.issue.number }}
+
       - name: Apply style updates
         uses: ./.github/actions/apply-style
 
