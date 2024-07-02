@@ -19,6 +19,8 @@ echo "~~~~~~Branch~~~~~~~~"
 git branch
 echo "~~~~~~~~~~~~~~~~~~~~"
 
+exit 1
+
 git submodule update --init --recursive
 
 mkdir build && cd build 
