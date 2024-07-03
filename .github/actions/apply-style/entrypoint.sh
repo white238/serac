@@ -29,13 +29,17 @@ for branch in $branches; do
   if [[ $branch == pull/* ]]; then
     continue
   fi
+  if [[ $branch == origin/* ]]; then
+  	branch=sed 's/origin\///'
+  fi
   echo $branch
+  git checkout $branch
+  break
 done
 
 echo "~~~~~~Found Branch~~~~~~~~"
 echo $branch
 echo "~~~~~~Branch~~~~~~~~"
-git checkout $branch
 git branch
 echo "~~~~~~~~~~~~~~~~~~~~"
 
