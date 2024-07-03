@@ -15,6 +15,8 @@ find "$REPO_PATH" -type d | while read -r dir; do
   git config --global --add safe.directory "$dir"
 done
 
+git pull
+
 # Set the branch to the PR's branch not a detached head
 # Get the current commit SHA
 current_commit_sha=$(git rev-parse HEAD)
