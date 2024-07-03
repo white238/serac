@@ -15,20 +15,27 @@ find "$REPO_PATH" -type d | while read -r dir; do
   git config --global --add safe.directory "$dir"
 done
 
-git pull
+git fetch
 
 # Set the branch to the PR's branch not a detached head
 # Get the current commit SHA
 current_commit_sha=$(git rev-parse HEAD)
 # List all branches containing the current commit SHA
 branches=$(git branch -r --contains $current_commit_sha)
-# Remove '  origin/'
-branch_name=$(echo "$branches" | sed 's/  origin\///')
+
+# Loop over the string split by whitespace
+for branch in $branches; do
+  # Skip items that start with "pull/"
+  if [[ $branch == pull/* ]]; then
+    continue
+  fi
+  echo $branch
+done
 
 echo "~~~~~~Found Branch~~~~~~~~"
-echo $branch_name
+echo $branch
 echo "~~~~~~Branch~~~~~~~~"
-git checkout $branch_name
+git checkout $branch
 git branch
 echo "~~~~~~~~~~~~~~~~~~~~"
 
