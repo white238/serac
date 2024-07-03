@@ -20,14 +20,18 @@ endif()
 project(serac LANGUAGES CXX C)
 
 # MPI is required in Serac.
-set(ENABLE_MPI ON CACHE BOOL "")
+# Note: for the style only mode, which doesn't need to actually build, we need to ignore this
+if (NOT SERAC_STYLE_ONLY)
+    set(ENABLE_MPI ON CACHE BOOL "")
 
-if (NOT SERAC_STYLE_ONLY AND (NOT MPI_C_COMPILER OR NOT MPI_CXX_COMPILER))
-    message(FATAL_ERROR 
-            "Serac requires MPI.  It is required to provide the MPI C/C++ "
-            "compiler wrappers via the CMake variables, "
-            "MPI_C_COMPILER and MPI_CXX_COMPILER.")
-endif()
+    if (NOT MPI_C_COMPILER OR NOT MPI_CXX_COMPILER)
+        message(FATAL_ERROR 
+                "Serac requires MPI.  It is required to provide the MPI C/C++ "
+                "compiler wrappers via the CMake variables, "
+                "MPI_C_COMPILER and MPI_CXX_COMPILER.")
+    endif()
+endif
+
 
 # Save off "raw" flags before they are modified by serac/BLT
 set(RAW_CMAKE_C_FLAGS   ${CMAKE_C_FLAGS}   CACHE STRING "")
