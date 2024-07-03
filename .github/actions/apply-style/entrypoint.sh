@@ -37,13 +37,9 @@ for branch in $branches; do
   break
 done
 
-echo "~~~~~~Found Branch~~~~~~~~"
-echo $branch
 echo "~~~~~~Branch~~~~~~~~"
 git branch
 echo "~~~~~~~~~~~~~~~~~~~~"
-
-exit 1
 
 git submodule update --init --recursive
 
