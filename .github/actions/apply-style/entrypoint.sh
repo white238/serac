@@ -44,3 +44,12 @@ git submodule update --init --recursive
 mkdir build && cd build 
 cmake $CMAKE_ARGS ..
 make style
+
+cd ..
+git config user.name "Agent Style"
+git config user.email "no-reply@llnl.gov"
+if [ -n "$(git status --porcelain)" ]; then
+git commit -am 'Apply style updates'
+git push
+fi
+

@@ -24,16 +24,6 @@ jobs:
       - name: Apply style updates
         uses: ./.github/actions/apply-style
 
-      - name: Push changed files
-        run: |
-          printf "GitHub Actor: ${GITHUB_ACTOR}\n"
-          git config user.name "Agent Style"
-          git config user.email "no-reply@llnl.gov"
-          if [ -n "$(git status --porcelain)" ]; then
-            git commit -am 'Apply style updates'
-            git push
-          fi
-
       - name: Comment on PR
         run: |
           COMMENT_URL=$(jq -r .issue.pull_request.url < $GITHUB_EVENT_PATH || jq -r .issue.url < $GITHUB_EVENT_PATH)
