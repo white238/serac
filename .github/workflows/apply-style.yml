@@ -16,16 +16,10 @@ jobs:
           GITHUB_CONTEXT: ${{ toJson(github) }}
         run: echo "$GITHUB_CONTEXT"
 
-      - uses: actions/checkout@v2
+      - name: Checkout pull request
+        uses: actions/checkout@v3
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
-
-      - name: Checkout Pull Request
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "Checking out from PR #${{ github.event.issue.number }}"
-          hub pr checkout ${{ github.event.issue.number }}
+          ref: refs/pull/${{ github.event.issue.number }}/head
 
       - name: Apply style updates
         uses: ./.github/actions/apply-style
