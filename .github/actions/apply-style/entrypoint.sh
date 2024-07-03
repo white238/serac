@@ -30,7 +30,7 @@ for branch in $branches; do
     continue
   fi
   if [[ $branch == origin/* ]]; then
-  	branch=sed 's/origin\///'
+  	branch=$(echo "$branch" | sed 's/origin\///')
   fi
   echo $branch
   git checkout $branch
