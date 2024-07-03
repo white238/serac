@@ -19,13 +19,14 @@ done
 # Get the current commit SHA
 current_commit_sha=$(git rev-parse HEAD)
 # List all branches containing the current commit SHA
-branches=$(git branch -a --contains $current_commit_sha)
-# Filter out the 'develop' branch
-non_develop_branches=$(echo "$branches" | grep -v "develop")
+branches=$(git branch -r --contains $current_commit_sha)
+# Remove '  origin/'
+branch_name=$(echo "$branches" | sed 's/  origin\///')
 
 echo "~~~~~~Found Branch~~~~~~~~"
-echo $non_develop_branches
+echo $branch_name
 echo "~~~~~~Branch~~~~~~~~"
+git checkout $branch_name
 git branch
 echo "~~~~~~~~~~~~~~~~~~~~"
 
